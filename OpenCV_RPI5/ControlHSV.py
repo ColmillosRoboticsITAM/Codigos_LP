@@ -5,7 +5,8 @@ def nothing(x):
     pass
 
 # Cargar imagen
-imagen = cv2.imread('ruta/a/tu/imagen.png')  # Cambia la ruta
+fr = cv2.imread('../Latas/azul2.png')  # Cambia la ruta
+imagen = cv2.resize(fr, (640,320), interpolation=cv2.INTER_LINEAR)
 
 # Crear ventana para controles
 cv2.namedWindow("Controles")
@@ -47,3 +48,4 @@ while True:
         break
 
 cv2.destroyAllWindows()
+

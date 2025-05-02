@@ -16,7 +16,7 @@ cv.imshow('blank',blank)
 # #thickness=cv.FILLED == thickness=-1
 # cv.imshow('rec', blank)
 
-cv.rectangle(blank, (0,0), (blank.shape[1]//2, blank.shape[0]//2), (200,100,200), thickness=1)
+cv.rectangle(blank, (0,0), (blank.shape[1]//2, blank.shape[0]//2), (200,100,200), thickness=-1)
 #thickness=cv.FILLED == thickness=-1
 cv.imshow('rec', blank)
 

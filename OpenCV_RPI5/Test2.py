@@ -1,11 +1,37 @@
 import cv2
 import cv2 as cv
-import imutils
+import numpy as np
 
 def buscar_mar(captura):
-    
+    hsv = cv2.cvtColor(captura, cv2.COLOR_BGR2HSV)
+    h_min = 96
+    h_max = 113
+    s_min = 137
+    s_max = 255
+    v_min = 0
+    v_max = 255
+    # Crear máscara
+    lower = np.array([h_min, s_min, v_min])
+    upper = np.array([h_max, s_max, v_max])
+    mascara = cv2.inRange(hsv, lower, upper)
+    # Mostrar resultados
+    resultado = cv2.bitwise_and(captura, captura, mask=mascara)
 
-    return (cx, cy)
+    #cv2.imshow("Imagen Original", captura)
+    #cv2.imshow("Mascara", mascara)
+    cv2.imshow("Resultado", resultado)
+
+    alto, ancho, _ = captura.shape
+    y = 250
+    h = 150
+    blank = np.zeros((alto, ancho), dtype='uint8')
+    blank = cv.rectangle(blank, (0, alto-y), (ancho, alto-y+h), 255, -1)
+    salida = cv.bitwise_and(blank, mascara)
+    #crop_im = cv2.bitwise_and(captura, captura, mask=salida)
+    cv2.imshow("blank", salida)
+
+    Cant_mar = np.sum(salida == 255)
+    return (Cant_mar>300)
 
 def buscar_latas (image, maskedImage):
     contours, _ = cv2.findContours(maskedImage, cv2.RETR_EXTERNAL, cv2.CHAIN_APPROX_SIMPLE)
@@ -30,7 +56,7 @@ def buscar_latas (image, maskedImage):
             cv2.putText(image, texto, (cx + 10, cy), cv2.FONT_HERSHEY_SIMPLEX, 0.5, (255, 0, 0), 1)
 
     # Mostrar imagen
-    cv2.imshow('Objetos detectados', image)
+    #cv2.imshow('Objetos detectados', image)
     lista = ""
     for i, obj in enumerate(objetos):
         lista += (f"{i + 1}: Á-{obj['area']:.2f}, P-({obj['x']}, {obj['y']}) \t")
@@ -56,16 +82,17 @@ while True:
     isTrue, original = capture.read()
     #cv.imshow('vid', frame)
     frame = original.copy()
-
+    frame_mar = original.copy()
     gray = cv.cvtColor(frame, cv.COLOR_BGR2GRAY)
     cv.imshow('gray', gray)
     threshold, mask = cv.threshold(gray, 15, 100, cv.THRESH_BINARY_INV)
     cv.imshow('thresh', mask)
     #th, thresh_inv = cv.threshold(gray, 100, 255, cv.THRESH_BINARY_INV)
     #cv.imshow('thresh_inv', thresh_inv)
+    flag = buscar_mar(frame_mar)
     latas = buscar_latas(frame, mask)
     coordenadas = objeto_mas_grande(latas)
-    print(coordenadas)
+    print(coordenadas, flag)
     cv.circle(frame, coordenadas, 40, (182, 252, 235), thickness=6)
     cv.imshow('circ', frame)
     if cv.waitKey(20) & 0xFF==ord('d'):
