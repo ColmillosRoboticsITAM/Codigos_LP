@@ -1,7 +1,7 @@
 import cv2
 import cv2 as cv
 import numpy as np
-
+#Algoritmo de vision principal
 def buscar_mar(captura):
     hsv = cv2.cvtColor(captura, cv2.COLOR_BGR2HSV)
     h_min = 96
