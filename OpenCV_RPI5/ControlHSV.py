@@ -5,8 +5,9 @@ def nothing(x):
     pass
 
 # Cargar imagen
-fr = cv2.imread('../Latas/azul2.png')  # Cambia la ruta
-imagen = cv2.resize(fr, (640,320), interpolation=cv2.INTER_LINEAR)
+frame = cv2.imread('../Latas/azul1.png')  # Cambia la ruta
+fr = cv2.GaussianBlur(frame, (3, 5), 0)
+imagen = cv2.resize(fr, (720,480), interpolation=cv2.INTER_LINEAR)
 
 # Crear ventana para controles
 cv2.namedWindow("Controles")

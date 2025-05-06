@@ -2,6 +2,7 @@ import cv2
 import cv2 as cv
 import numpy as np
 #Algoritmo de vision principal
+
 def buscar_mar(captura):
     hsv = cv2.cvtColor(captura, cv2.COLOR_BGR2HSV)
     h_min = 96
@@ -76,6 +77,37 @@ def objeto_mas_grande(objetos):
 
     return (cx, cy)
 
+def encontrar_contenedor(captura_mar):
+    rgb = cv2.cvtColor(captura_mar, cv2.COLOR_BGR2RGB)
+    hsv = cv2.cvtColor(rgb, cv2.COLOR_BGR2HSV)
+    # Crear máscara
+    lower = np.array([84, 0, 9])
+    upper = np.array([160, 35, 45])
+    mascara1 = cv2.inRange(rgb, lower, upper)
+    kernel = np.ones((5, 5), np.uint8)
+    mascara_suave = cv2.morphologyEx(mascara1, cv2.MORPH_CLOSE, kernel)
+    cv2.imshow("Mascara", mascara_suave)
+    contours, _ = cv2.findContours(mascara_suave, cv2.RETR_EXTERNAL, cv2.CHAIN_APPROX_SIMPLE)
+    # Dibujar contornos y centroides
+    flag_contenedor = False
+    cx, cy = 0, 0
+    for i, cnt in enumerate(contours):
+        area = cv2.contourArea(cnt)
+        if area > 300:
+            M = cv2.moments(cnt)
+            if M["m00"] != 0:
+                cx = int(M["m10"] / M["m00"])
+                cy = int(M["m01"] / M["m00"])
+            else:
+                cx, cy = 0, 0
+            cv2.drawContours(captura_mar, [cnt], -1, (0, 255, 0), 2)
+            # Dibujar centroide
+            cv2.circle(captura_mar, (cx, cy), 4, (0, 0, 255), -1)
+            #Salida de datos
+            flag_contenedor = np.sum(mascara_suave == 255)>300
+
+    return flag_contenedor, (cx, cy)
+
 capture =  cv.VideoCapture(1, cv.CAP_DSHOW)
 
 while True:
@@ -83,18 +115,26 @@ while True:
     #cv.imshow('vid', frame)
     frame = original.copy()
     frame_mar = original.copy()
+    frame_contenedor = original.copy()
+
     gray = cv.cvtColor(frame, cv.COLOR_BGR2GRAY)
-    cv.imshow('gray', gray)
-    threshold, mask = cv.threshold(gray, 15, 100, cv.THRESH_BINARY_INV)
+    #cv.imshow('gray', gray)
+    threshold, 6
+    mask = cv.threshold(gray, 70, 100, cv.THRESH_BINARY_INV)
     cv.imshow('thresh', mask)
-    #th, thresh_inv = cv.threshold(gray, 100, 255, cv.THRESH_BINARY_INV)
-    #cv.imshow('thresh_inv', thresh_inv)
+
     flag = buscar_mar(frame_mar)
+
     latas = buscar_latas(frame, mask)
+
+    hayContenedor, coords_Contenedor = encontrar_contenedor(frame_contenedor)
+
+
     coordenadas = objeto_mas_grande(latas)
-    print(coordenadas, flag)
+    print(coordenadas, flag, hayContenedor, coords_Contenedor)
     cv.circle(frame, coordenadas, 40, (182, 252, 235), thickness=6)
     cv.imshow('circ', frame)
+    cv.imshow('contenedor', frame_contenedor)
     if cv.waitKey(20) & 0xFF==ord('d'):
         break
 capture.release()
