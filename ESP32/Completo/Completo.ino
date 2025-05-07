@@ -35,6 +35,8 @@ float lastError = 0.0;
 float integral = 0.0;
 float derivative = 0.0;
 
+int latas_dentro = 0;
+
 void calibrarGyroZ() {
   const int N = 1000;
   long suma = 0;
@@ -50,6 +52,18 @@ void calibrarGyroZ() {
   Serial.print("Bias Z calculado: ");
   Serial.println(biasZ);
 }
+
+enum EstadoRobot {
+  INICIO,
+  BUSCAR_LATA,
+  GIRAR_A_LATA,
+  IR_A_LATA,
+  RECOGER_LATA,
+  IR_A_CONTENEDOR,
+  ENTREGAR_LATA,
+  FINALIZAR
+};
+EstadoRobot estadoActual = INICIO;
 
 void setup() {
   Serial.begin(115200);
@@ -82,15 +96,89 @@ void setup() {
 
 void loop() {
   now = millis();
-  if (Serial.available()) {
-    double aux = Serial.parseFloat(); 
-    if (aux != 0) {
-      val = aux;
-    }
-  }
   read_heading();
   calc_pid(-anguloZ, 90);
   turn_robot(output);
+  switch (estadoActual) {
+    case INICIO:
+      Serial.println("Estado: INICIO");
+      // Inicializar sistemas
+      delay(1000); // Simula espera de inicio
+      estadoActual = BUSCAR_LATA;
+      break;
+
+    case BUSCAR_LATA:
+      Serial.println("Estado: BUSCAR_LATA");
+      if (!flag_mar) {
+        estadoActual = GIRAR_A_LATA;
+      }
+      else{
+        //Rotar
+      }
+      break;
+    
+    case GIRAR_A_LATA:
+      Serial.println("Estado: IR_A_LATA");
+      if (moverseALata()) {
+        estadoActual = RECOGER_LATA;
+      }
+      break;
+
+    case IR_A_LATA:
+      Serial.println("Estado: IR_A_LATA");
+      if(flag_mar){
+        //Rotar 180
+        calc_pid(-anguloZ,135);
+        turn_robot(output);
+      }
+      else if(!flag_mar){
+        //Avanzar
+      }
+      if (Flag_Lata_dentro) {
+        estadoActual = RECOGER_LATA;
+      }
+      break;
+
+    case RECOGER_LATA:
+      Serial.println("Estado: RECOGER_LATA");
+      if (!Flag_Lata_dentro) {
+        latas_dentro += 1;
+        if (latas_dentro>=3) {
+        estadoActual = IR_A_CONTENEDOR;
+        }
+        else{
+        estadoActual = BUSCAR_LATA;  
+        }
+      else{
+        //Avanzar por 3s
+        }
+      }
+      break;
+
+    case IR_A_CONTENEDOR:
+      Serial.println("Estado: IR_A_CONTENEDOR");
+      if (irAContenedor()) {
+        estadoActual = ENTREGAR_LATA;
+      }
+      break;
+
+    case ENTREGAR_LATA:
+      Serial.println("Estado: ENTREGAR_LATA");
+      if (entregarLata()) {
+        if (hayMasLatas()) {
+          estadoActual = BUSCAR_LATA;
+        } else {
+          estadoActual = FINALIZAR;
+        }
+      }
+      break;
+
+    case FINALIZAR:
+      Serial.println("Estado: FINALIZAR");
+      detenerRobot();
+      while (true); // Detiene el loop
+      break;
+  }
   delay(100);
 }
 
@@ -136,13 +224,12 @@ void read_heading(){
 
   float velocidadZ = imu.g.z - biasZ;
   if (abs(velocidadZ) > 300) {
-    anguloZ += velocidadZ * dt/50;
+    anguloZ += velocidadZ * dt/122.5;
   }
   // Serial.print("Vel Z: ");
   // Serial.print(velocidadZ, 2);
   //Serial.print("|\tÁngulo Z: ");
   //Serial.println(-anguloZ, 2);
-
   delay(10);
 }
 

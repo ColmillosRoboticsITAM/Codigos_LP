@@ -1,5 +1,6 @@
 import cv2
 import cv2 as cv
+import math
 import numpy as np
 #Algoritmo de vision principal
 
@@ -65,17 +66,31 @@ def buscar_latas (image, maskedImage):
 
     return (objetos)
 
-def objeto_mas_grande(objetos):
+def objeto_mas_grande(objetos, image):
+    ang = 0
     if not objetos:
-        return None, None
-
+        return (0, 0), 540
     # Encontrar el objeto con el área máxima
     objeto_max = max(objetos, key=lambda o: o['area'])
 
     # Obtener centroide
     cx, cy = objeto_max['x'], objeto_max['y']
+    if cx == 0 and cy == 0:
+        ang = 540
+    else:
+        h, w = image.shape[:2]
+        max_x = w // 2
+        # Coordenadas del centro de la imagen
+        c_x = w // 2
+        c_y = h // 2
 
-    return (cx, cy)
+        # Vector desde el centro al punto
+        dx = cx - c_x
+        dy = cy - c_y
+
+        # Ángulo en radianes y grados
+        ang = dx * (-120 / max_x)
+    return (cx, cy), ang
 
 def encontrar_contenedor(captura_mar):
     rgb = cv2.cvtColor(captura_mar, cv2.COLOR_BGR2RGB)
@@ -90,7 +105,9 @@ def encontrar_contenedor(captura_mar):
     contours, _ = cv2.findContours(mascara_suave, cv2.RETR_EXTERNAL, cv2.CHAIN_APPROX_SIMPLE)
     # Dibujar contornos y centroides
     flag_contenedor = False
+    objetos = []
     cx, cy = 0, 0
+    ang = 0
     for i, cnt in enumerate(contours):
         area = cv2.contourArea(cnt)
         if area > 300:
@@ -100,15 +117,53 @@ def encontrar_contenedor(captura_mar):
                 cy = int(M["m01"] / M["m00"])
             else:
                 cx, cy = 0, 0
+            objetos.append({'area': area, 'x': cx, 'y': cy, 'ctrs': cnt})
             cv2.drawContours(captura_mar, [cnt], -1, (0, 255, 0), 2)
             # Dibujar centroide
             cv2.circle(captura_mar, (cx, cy), 4, (0, 0, 255), -1)
             #Salida de datos
             flag_contenedor = np.sum(mascara_suave == 255)>300
+    if not objetos:
+        return mascara_suave, False, (0, 0), 540
+    # Encontrar el objeto con el área máxima
+    objeto_max = max(objetos, key=lambda o: o['area'])
+    # Obtener centroide
+    cx, cy = objeto_max['x'], objeto_max['y']
+    if cx == 0 and cy == 0:
+        ang = 540
+    else:
+        h, w = captura_mar.shape[:2]
+        max_x = w // 2
+        # Coordenadas del centro de la imagen
+        c_x = w // 2
+        c_y = h // 2
 
-    return flag_contenedor, (cx, cy)
+        # Vector desde el centro al punto
+        dx = cx - c_x
+        dy = cy - c_y
 
-capture =  cv.VideoCapture(1, cv.CAP_DSHOW)
+        # Ángulo en radianes y grados
+        ang = dx * (-120/max_x)
+    return mascara_suave, flag_contenedor, (cx, cy), ang
+
+def llegando_a(m_latas, m_cont):
+    bandera_lata, bandera_cont = False, False
+    alto, ancho = m_latas.shape
+    w = ancho//4
+    h = alto//3
+    blank = np.zeros((alto, ancho), dtype='uint8')
+    blank = cv.rectangle(blank, ((ancho//2)-w, alto - h), ((ancho//2)+w, alto), 255, -1)
+    salida1 = cv.bitwise_and(blank, m_latas)
+    salida2 = cv.bitwise_and(blank, m_cont)
+    #cv2.imshow("blank_m", blank)
+    #cv2.imshow("blank1", salida1)
+    #cv2.imshow("blank2", salida2)
+
+    bandera_lata = np.sum(salida1 > 0) >300
+    bandera_cont = np.sum(salida2 > 0) > 300
+    return bandera_lata, bandera_cont
+
+capture =  cv.VideoCapture(0, cv.CAP_DSHOW)
 
 while True:
     isTrue, original = capture.read()
@@ -119,19 +174,21 @@ while True:
 
     gray = cv.cvtColor(frame, cv.COLOR_BGR2GRAY)
     #cv.imshow('gray', gray)
-    threshold, 6
-    mask = cv.threshold(gray, 70, 100, cv.THRESH_BINARY_INV)
+    threshold, mask = cv.threshold(gray, 15, 100, cv.THRESH_BINARY_INV)
     cv.imshow('thresh', mask)
 
-    flag = buscar_mar(frame_mar)
+    flag_mar = buscar_mar(frame_mar)
 
     latas = buscar_latas(frame, mask)
 
-    hayContenedor, coords_Contenedor = encontrar_contenedor(frame_contenedor)
+    mask_Cont, hayCont, coords_Cont, ang_Cont = encontrar_contenedor(frame_contenedor)
 
+    coordenadas, ang_lata = objeto_mas_grande(latas, mask)
+    flag_lata, flag_cont = llegando_a(mask, mask_Cont)
+ #flag_lata y flag_cont son para reconocer si a mbos onjetos estan lo suficientemente cerca del tobot
+    #print(ang_lata,flag_lata, flag_mar, hayCont, ang_Cont, flag_cont)
+    print(ang_lata,int(flag_lata), int(flag_mar), int(hayCont), ang_Cont, int(flag_cont))
 
-    coordenadas = objeto_mas_grande(latas)
-    print(coordenadas, flag, hayContenedor, coords_Contenedor)
     cv.circle(frame, coordenadas, 40, (182, 252, 235), thickness=6)
     cv.imshow('circ', frame)
     cv.imshow('contenedor', frame_contenedor)
